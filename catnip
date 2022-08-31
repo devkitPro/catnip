@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -e
+shopt -s extglob
+
+catnip_help() {
+	echo "Help string for catnip"
+	exit 0
+}
+
+cmake_list() {
+	local IFS=";"
+	echo "$*"
+}
+
+args=()
+flags=()
+next_arg=no
+for var in "$@"
+do
+	cur_arg="$next_arg"
+	next_arg=no
+	case $cur_arg in
+	-t|--toolchain)
+		flags+=("-DCATNIP_DEFAULT_TOOLCHAIN:STRING=${var}")
+		continue
+		;;
+	esac
+
+	case $var in
+	-\?|-h|--help)
+		catnip_help
+		;;
+	-t|--toolchain)
+		next_arg="${var}"
+		;;
+	-p|--pkg)
+		flags+=("-DCATNIP_PACKAGE_SELECTORS:BOOL=ON")
+		;;
+	*=*)
+		flags+=("-D${var}")
+		;;
+	+([a-zA-Z0-9_.]))
+		args+=("${var}")
+		;;
+	*)
+		echo "Invalid argument: ${var}" >&2
+		exit 1
+		;;
+	esac
+done
+
+exec cmake "${flags[@]}" "-DCATNIP_ARGV=$(cmake_list "${args[@]}")" -P ${DEVKITPRO}/cmake/catnip-main.cmake
