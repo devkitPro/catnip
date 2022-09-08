@@ -48,10 +48,10 @@ function(__catnip_find_root)
 	set(CATNIP_ROOT "${CMAKE_SOURCE_DIR}" PARENT_SCOPE)
 endfunction()
 
-function(__catnip_find_toolchain var toolchain)
+function(__catnip_find_toolset var toolset)
 	foreach(dir IN LISTS CMAKE_MODULE_PATH)
 		file(GLOB files "${dir}/*.cmake" LIST_DIRECTORIES false)
-		string(TOLOWER "${dir}/${toolchain}.cmake" match1)
+		string(TOLOWER "${dir}/${toolset}.cmake" match1)
 		foreach(file IN LISTS files)
 			string(TOLOWER "${file}" match2)
 			if(match1 STREQUAL match2)
@@ -61,7 +61,7 @@ function(__catnip_find_toolchain var toolchain)
 		endforeach()
 	endforeach()
 
-	message(FATAL_ERROR "Could not find a suitable '${toolchain}' toolchain")
+	message(FATAL_ERROR "Could not find a suitable '${toolset}' toolset")
 endfunction()
 
 function(__catnip_add_subdirectory subdir)
@@ -76,11 +76,11 @@ function(__catnip_add_subdirectory subdir)
 		file(READ ${subdir}/CMakeLists.txt listtext)
 		if(listtext MATCHES "catnip_package")
 			include(${subdir}/CMakeLists.txt)
-		elseif(DEFINED CATNIP_DEFAULT_TOOLCHAIN)
+		elseif(DEFINED CATNIP_DEFAULT_TOOLSET)
 			get_filename_component(pkgname "${subdir}" NAME)
-			__catnip_simple_package(${pkgname} ${subdir} ${CATNIP_DEFAULT_TOOLCHAIN})
+			__catnip_simple_package(${pkgname} ${subdir} ${CATNIP_DEFAULT_TOOLSET})
 		else()
-			message(FATAL_ERROR "${subdir} is a valid CMake project, however no toolchain was specified")
+			message(FATAL_ERROR "${subdir} is a valid CMake project, however no toolset was specified")
 		endif()
 		return()
 	endif()
@@ -134,16 +134,16 @@ function(catnip_add_preset presetname)
 	__catnip_check_identifier("${presetname}")
 	cmake_parse_arguments(PARSE_ARGV 1 ARG
 		""
-		"TOOLCHAIN;BUILD_TYPE;SYSTEM;PROCESSOR"
+		"TOOLSET;BUILD_TYPE;SYSTEM;PROCESSOR"
 		"CACHE;DEPENDS"
 	)
 
 	set(cmakeargs "")
 
-	if(ARG_TOOLCHAIN)
-		__catnip_check_identifier2("${ARG_TOOLCHAIN}")
-		__catnip_find_toolchain(ARG_TOOLCHAIN "${ARG_TOOLCHAIN}")
-		list(APPEND cmakeargs "-DCMAKE_TOOLCHAIN_FILE=${ARG_TOOLCHAIN}")
+	if(ARG_TOOLSET)
+		__catnip_check_identifier2("${ARG_TOOLSET}")
+		__catnip_find_toolset(ARG_TOOLSET "${ARG_TOOLSET}")
+		list(APPEND cmakeargs "-DCMAKE_TOOLCHAIN_FILE=${ARG_TOOLSET}")
 	endif()
 
 	if(ARG_BUILD_TYPE)
@@ -180,15 +180,15 @@ function(catnip_add_preset presetname)
 	set_property(GLOBAL PROPERTY ${scope}_DEPENDS "${ARG_DEPENDS}")
 endfunction()
 
-function(__catnip_simple_package pkgname dir toolchain)
+function(__catnip_simple_package pkgname dir toolset)
 	#message(STATUS "${dir} -> ${pkgname}")
-	string(TOLOWER "${toolchain}" selprefix)
+	string(TOLOWER "${toolset}" selprefix)
 	catnip_package(${pkgname} DIR ${dir} DEFAULT ${selprefix}_release)
 	set(configs Debug Release)
 	foreach(config IN LISTS configs)
 		string(TOLOWER "${config}" selsuffix)
 		catnip_add_preset(${selprefix}_${selsuffix}
-			TOOLCHAIN ${toolchain}
+			TOOLSET ${toolset}
 			BUILD_TYPE ${config}
 		)
 	endforeach()
@@ -210,8 +210,8 @@ if(NOT DEFINED CATNIP_BUILD_DIR)
 	endif()
 endif()
 
-if(NOT DEFINED CATNIP_DEFAULT_TOOLCHAIN AND DEFINED ENV{CATNIP_DEFAULT_TOOLCHAIN})
-	set(CATNIP_DEFAULT_TOOLCHAIN $ENV{CATNIP_DEFAULT_TOOLCHAIN})
+if(NOT DEFINED CATNIP_DEFAULT_TOOLSET AND DEFINED ENV{CATNIP_DEFAULT_TOOLSET})
+	set(CATNIP_DEFAULT_TOOLSET $ENV{CATNIP_DEFAULT_TOOLSET})
 endif()
 
 message(STATUS "Catnip root is ${CATNIP_ROOT}")
