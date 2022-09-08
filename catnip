@@ -14,39 +14,69 @@ cmake_list() {
 
 args=()
 flags=()
-next_arg=no
-for var in "$@"
-do
-	cur_arg="$next_arg"
-	next_arg=no
-	case $cur_arg in
-	-t|--toolchain)
-		flags+=("-DCATNIP_DEFAULT_TOOLCHAIN:STRING=${var}")
-		continue
-		;;
-	esac
+cache=()
 
-	case $var in
-	-\?|-h|--help)
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	--help)
 		catnip_help
 		;;
-	-t|--toolchain)
-		next_arg="${var}"
+	--*)
+		echo "Invalid option: $1"
+		catnip_help
 		;;
-	-p|--pkg)
-		flags+=("-DCATNIP_PACKAGE_SELECTORS:BOOL=ON")
-		;;
-	*=*)
-		flags+=("-D${var}")
+	-*)
+		OPTIND=1
+		while getopts "S:B:D:U:T:t:pv?h" opt; do
+			case "$opt" in
+			h|\?)
+				catnip_help
+				;;
+			S)
+				flags+=("-DCATNIP_ROOT:STRING=${OPTARG}")
+				;;
+			B)
+				flags+=("-DCATNIP_BUILD_DIR:STRING=${OPTARG}")
+				;;
+			D)
+				case "${OPTARG}" in
+				+([a-zA-Z0-9_])?(:BOOL|:FILEPATH|:PATH|:STRING|:INTERNAL)=*)
+					cache+=("${OPTARG}")
+					;;
+				*)
+					echo "Invalid cache entry: ${OPTARG}"
+					catnip_help
+					;;
+				esac
+				;;
+			U)
+				cache+=("${OPTARG}:UNSET=")
+				;;
+			[Tt])
+				flags+=("-DCATNIP_DEFAULT_TOOLSET:STRING=${OPTARG}")
+				;;
+			p)
+				flags+=("-DCATNIP_PACKAGE_SELECTORS:BOOL=ON")
+				;;
+			v)
+				flags+=("-DCATNIP_VERBOSE:BOOL=ON")
+				;;
+			esac
+		done
+		shift $((OPTIND-1))
 		;;
 	+([a-zA-Z0-9_.]))
-		args+=("${var}")
+		args+=("$1")
+		shift
 		;;
 	*)
-		echo "Invalid argument: ${var}" >&2
-		exit 1
+		echo "Invalid argument: $1"
+		catnip_help
 		;;
 	esac
 done
 
-exec cmake "${flags[@]}" "-DCATNIP_ARGV=$(cmake_list "${args[@]}")" -P ${DEVKITPRO}/cmake/catnip-main.cmake
+flags+=("-DCATNIP_CACHE:STRING=$(cmake_list "${cache[@]}")")
+flags+=("-DCATNIP_ARGV:STRING=$(cmake_list "${args[@]}")")
+
+exec cmake "${flags[@]}" -P ${DEVKITPRO}/cmake/catnip-main.cmake

@@ -43,6 +43,10 @@ function(__catnip_build selector)
 		get_property(cmakeargs GLOBAL PROPERTY ${scope}_CMAKE_ARGS)
 		__catnip_generator(generator)
 
+		if(NOT CATNIP_VERBOSE)
+			set(silence OUTPUT_QUIET)
+		endif()
+
 		execute_process(
 			COMMAND ${CMAKE_COMMAND} -E env
 				"CATNIP_BUILD_DIR=${CATNIP_BUILD_DIR}"
@@ -53,7 +57,7 @@ function(__catnip_build selector)
 				-S "${srcdir}"
 				-B "${builddir}"
 			RESULT_VARIABLE error
-			OUTPUT_QUIET
+			${silence}
 		)
 
 		if(error)
@@ -64,8 +68,12 @@ function(__catnip_build selector)
 		file(WRITE "${stampfile}" "${stamp}")
 	endif()
 
+	if(CATNIP_VERBOSE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
+		set(verbose --verbose)
+	endif()
+
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} --build "${builddir}"
+		COMMAND ${CMAKE_COMMAND} --build "${builddir}" ${verbose}
 		RESULT_VARIABLE error
 	)
 
