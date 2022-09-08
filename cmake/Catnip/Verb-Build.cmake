@@ -49,9 +49,6 @@ function(__catnip_build selector)
 				"CATNIP_PRESET=${preset}"
 				${CMAKE_COMMAND} ${cmakeargs}
 				-D CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE
-				#-D DKP_NO_BUILTIN_CMAKE_CONFIGS:BOOL=TRUE
-				#-D "CATNIP_BUILD_DIR:PATH=${CATNIP_BUILD_DIR}"
-				#-D "CATNIP_PRESET:STRING=${preset}"
 				-G "${generator}"
 				-S "${srcdir}"
 				-B "${builddir}"
