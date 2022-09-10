@@ -73,7 +73,7 @@ function(__catnip_validate_packages)
 	endforeach()
 endfunction()
 
-function(__catnip_visit selector)
+function(__catnip_visit selector verb)
 	string(REPLACE "." "__" scope "${selector}")
 	set(scope CATNIP_${scope})
 
@@ -81,6 +81,10 @@ function(__catnip_visit selector)
 	if(NOT valid)
 		message(FATAL_ERROR "Invalid preset: ${selector}")
 	endif()
+
+	# Store verb now in order to allow overriding it even if
+	# this selector has already been visited before
+	set_property(GLOBAL PROPERTY ${scope}_VERB "${verb}")
 
 	get_property(state GLOBAL PROPERTY ${scope}_VISIT)
 	if("${state}" STREQUAL "2")
@@ -91,11 +95,12 @@ function(__catnip_visit selector)
 
 	set_property(GLOBAL PROPERTY ${scope}_VISIT 1)
 
-	# TODO: Deps only need checked for build/install
-	get_property(deps GLOBAL PROPERTY ${scope}_DEPENDS)
-	foreach(dep IN LISTS deps)
-		__catnip_visit("${dep}")
-	endforeach()
+	if(NOT "${verb}" STREQUAL "clean") # build/install: visit all dependencies
+		get_property(deps GLOBAL PROPERTY ${scope}_DEPENDS)
+		foreach(dep IN LISTS deps)
+			__catnip_visit("${dep}" "build") # install decays to build for dependencies
+		endforeach()
+	endif()
 
 	set_property(GLOBAL PROPERTY ${scope}_VISIT 2)
 	set_property(GLOBAL APPEND PROPERTY CATNIP_SELECTORS "${selector}")
@@ -129,7 +134,7 @@ function(__catnip_planner)
 		endif()
 
 		foreach(selector IN LISTS CATNIP_ARGV)
-			__catnip_visit("${cwdpkg}.${selector}")
+			__catnip_visit("${cwdpkg}.${selector}" "${verb}")
 		endforeach()
 	else()
 		message(FATAL_ERROR "Package selectors not implemented")

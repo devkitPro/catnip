@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
 		;;
 	-*)
 		OPTIND=1
-		while getopts "S:B:D:U:T:t:pv?h" opt; do
+		while getopts "S:B:D:U:T:t:pvf?h" opt; do
 			case "$opt" in
 			h|\?)
 				catnip_help
@@ -60,6 +60,9 @@ while [[ $# -gt 0 ]]; do
 				;;
 			v)
 				flags+=("-DCATNIP_VERBOSE:BOOL=ON")
+				;;
+			f)
+				flags+=("-DCATNIP_FORCE_FLAG:BOOL=ON")
 				;;
 			esac
 		done

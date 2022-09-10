@@ -19,10 +19,9 @@ function(__catnip_build selector)
 	string(SUBSTRING "${selector}" 0 ${dotpos} pkgname)
 	math(EXPR dotpos "${dotpos}+1")
 	string(SUBSTRING "${selector}" ${dotpos} -1 preset)
-	#string(REPLACE "." "__" scope "${selector}")
-	#set(scope CATNIP_${scope})
 	set(scope CATNIP_${pkgname}__${preset})
 
+	get_property(verb GLOBAL PROPERTY ${scope}_VERB)
 	get_property(srcdir GLOBAL PROPERTY CATNIP_${pkgname}_SOURCE)
 	get_property(stamp GLOBAL PROPERTY ${scope}_STAMP)
 	set(builddir "${CATNIP_BUILD_DIR}/${selector}")
@@ -68,12 +67,22 @@ function(__catnip_build selector)
 		file(WRITE "${stampfile}" "${stamp}")
 	endif()
 
+	set(buildargs --build "${builddir}")
+
+	if(NOT "${verb}" STREQUAL "build")
+		list(APPEND buildargs --target "${verb}")
+	endif()
+
+	if(CATNIP_FORCE_FLAG)
+		list(APPEND buildargs --clean-first)
+	endif()
+
 	if(CATNIP_VERBOSE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
-		set(verbose --verbose)
+		list(APPEND buildargs --verbose)
 	endif()
 
 	execute_process(
-		COMMAND ${CMAKE_COMMAND} --build "${builddir}" ${verbose}
+		COMMAND ${CMAKE_COMMAND} ${buildargs}
 		RESULT_VARIABLE error
 	)
 
@@ -81,6 +90,12 @@ function(__catnip_build selector)
 		message(FATAL_ERROR "Failed to build ${selector}")
 	endif()
 endfunction()
+
+if("${CATNIP_VERB}" STREQUAL "install" AND DEFINED ENV{DESTDIR})
+	# Fixup DESTDIR so that it matches the correct CWD
+	get_filename_component(DESTDIR "$ENV{DESTDIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
+	set(ENV{DESTDIR} "${DESTDIR}")
+endif()
 
 foreach(sel IN LISTS CATNIP_SELECTORS)
 	__catnip_build("${sel}")
