@@ -48,6 +48,7 @@ function(__catnip_build selector)
 
 		execute_process(
 			COMMAND ${CMAKE_COMMAND} -E env
+				"DKP_BUILD_TOOL_HOOK=dkp-catnip-utils"
 				"CATNIP_BUILD_DIR=${CATNIP_BUILD_DIR}"
 				"CATNIP_PRESET=${preset}"
 				${CMAKE_COMMAND} ${cmakeargs}
