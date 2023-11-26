@@ -3,7 +3,26 @@ set -e
 shopt -s extglob
 
 catnip_help() {
-	echo "Help string for catnip"
+	echo "Catnip - build helper tool for devkitPro CMake projects"
+	echo "Usage:"
+	echo ""
+	echo "catnip [options] [<verb>] [<selectors>...]"
+	echo ""
+	echo "Verbs:"
+	echo "  build (Default)"
+	echo "  clean"
+	echo "  install"
+	echo ""
+	echo "Options:"
+	echo "  -S <path-to-root>            = Explicitly specify the source root"
+	echo "  -B <path-to-build>           = Explicitly specify the build folder"
+	echo "  -D <var>[:<type>]=<value>    = Create or update a Catnip cache entry"
+	echo "  -U <var>                     = Remove matching entries from Catnip cache"
+	echo "  -T <toolset>                 = Specify default toolset used to build projects"
+	echo "  -p                           = Enable package selector mode"
+	echo "  -v                           = Enable verbose mode"
+	echo "  -f                           = Enable forceful mode"
+	echo ""
 	exit 0
 }
 
