@@ -76,7 +76,7 @@ function(__catnip_find_root)
 	set(CATNIP_ROOT "${CMAKE_SOURCE_DIR}" PARENT_SCOPE)
 endfunction()
 
-function(__catnip_find_toolset var toolset)
+function(__catnip_find_toolset var toolset severity)
 	foreach(dir IN LISTS CMAKE_MODULE_PATH)
 		file(GLOB files "${dir}/*.cmake" LIST_DIRECTORIES false)
 		string(TOLOWER "${dir}/${toolset}.cmake" match1)
@@ -89,7 +89,8 @@ function(__catnip_find_toolset var toolset)
 		endforeach()
 	endforeach()
 
-	message(FATAL_ERROR "Could not find a suitable '${toolset}' toolset")
+	set(${var} "" PARENT_SCOPE)
+	message("${severity}" "Could not find a suitable '${toolset}' toolset")
 endfunction()
 
 function(__catnip_add_subdirectory subdir)
@@ -159,14 +160,17 @@ function(catnip_add_preset presetname)
 	__catnip_scope(scope)
 	__catnip_check_identifier("${presetname}")
 	cmake_parse_arguments(PARSE_ARGV 1 ARG
-		""
+		"DEFAULT"
 		"TOOLSET;BUILD_TYPE;SYSTEM;PROCESSOR"
 		"CACHE;DEPENDS"
 	)
 
 	if(ARG_TOOLSET)
 		__catnip_check_identifier2("${ARG_TOOLSET}")
-		__catnip_find_toolset(ARG_TOOLSET "${ARG_TOOLSET}")
+		__catnip_find_toolset(ARG_TOOLSET "${ARG_TOOLSET}" WARNING)
+		if(NOT ARG_TOOLSET)
+			return()
+		endif()
 		list(APPEND ARG_CACHE "CMAKE_TOOLCHAIN_FILE=${ARG_TOOLSET}")
 	elseif(NOT CATNIP_HAS_DEFAULT_TOOLSET)
 		message(FATAL_ERROR "No default toolset specified: use -T <toolset> to select one (e.g. -T 3DS)")
@@ -201,6 +205,9 @@ function(catnip_add_preset presetname)
 	endforeach()
 
 	set_property(GLOBAL APPEND PROPERTY ${scope}_PRESETS ${presetname})
+	if(ARG_DEFAULT)
+		set_property(GLOBAL APPEND PROPERTY ${scope}_DEFAULT ${presetname})
+	endif()
 
 	set(scope ${scope}__${presetname})
 	set_property(GLOBAL PROPERTY ${scope}_STAMP "${stamp}")
@@ -234,7 +241,7 @@ endif()
 
 if(DEFINED CATNIP_DEFAULT_TOOLSET)
 	__catnip_check_identifier2("${CATNIP_DEFAULT_TOOLSET}")
-	__catnip_find_toolset(CATNIP_DEFAULT_TOOLSET "${CATNIP_DEFAULT_TOOLSET}")
+	__catnip_find_toolset(CATNIP_DEFAULT_TOOLSET "${CATNIP_DEFAULT_TOOLSET}" FATAL_ERROR)
 	list(APPEND CATNIP_CACHE "CMAKE_TOOLCHAIN_FILE=${CATNIP_DEFAULT_TOOLSET}")
 endif()
 
