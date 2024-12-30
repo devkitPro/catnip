@@ -28,6 +28,7 @@ function(__catnip_clean selector)
 	endif()
 endfunction()
 
+__catnip_planner()
 foreach(sel IN LISTS CATNIP_SELECTORS)
 	__catnip_clean("${sel}")
 endforeach()

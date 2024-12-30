@@ -1,4 +1,6 @@
 
+set(CATNIP_VERBS_WITH_DEPS config build install)
+
 function(__catnip_validate_deplist pkgname preset propname)
 	get_property(inlist GLOBAL PROPERTY CATNIP_${pkgname}__${preset}_${propname})
 	set(outlist "")
@@ -95,10 +97,17 @@ function(__catnip_visit selector verb)
 
 	set_property(GLOBAL PROPERTY ${scope}_VISIT 1)
 
-	if(NOT "${verb}" STREQUAL "clean") # build/install: visit all dependencies
+	if("${verb}" IN_LIST CATNIP_VERBS_WITH_DEPS)
+		if("${verb}" STREQUAL "install")
+			# install decays to build for dependencies
+			set(depverb "build")
+		else()
+			set(depverb "${verb}")
+		endif()
+
 		get_property(deps GLOBAL PROPERTY ${scope}_DEPENDS)
 		foreach(dep IN LISTS deps)
-			__catnip_visit("${dep}" "build") # install decays to build for dependencies
+			__catnip_visit("${dep}" "${depverb}")
 		endforeach()
 	endif()
 
@@ -106,7 +115,7 @@ function(__catnip_visit selector verb)
 	set_property(GLOBAL APPEND PROPERTY CATNIP_SELECTORS "${selector}")
 endfunction()
 
-function(__catnip_planner)
+function(__catnip_extract_verb)
 	if(NOT "${CATNIP_ARGV}" STREQUAL "")
 		list(GET CATNIP_ARGV 0 verb)
 	else()
@@ -120,7 +129,10 @@ function(__catnip_planner)
 	endif()
 
 	set(CATNIP_VERB "${verb}" PARENT_SCOPE)
+	set(CATNIP_ARGV "${CATNIP_ARGV}" PARENT_SCOPE)
+endfunction()
 
+function(__catnip_planner)
 	if(NOT CATNIP_PACKAGE_SELECTORS)
 		get_property(cwdpkg GLOBAL PROPERTY CATNIP_CWD_PACKAGE)
 		if("${cwdpkg}" STREQUAL "")
@@ -134,7 +146,7 @@ function(__catnip_planner)
 		endif()
 
 		foreach(selector IN LISTS CATNIP_ARGV)
-			__catnip_visit("${cwdpkg}.${selector}" "${verb}")
+			__catnip_visit("${cwdpkg}.${selector}" "${CATNIP_VERB}")
 		endforeach()
 	else()
 		message(FATAL_ERROR "Package selectors not implemented")
@@ -145,4 +157,4 @@ function(__catnip_planner)
 endfunction()
 
 __catnip_validate_packages()
-__catnip_planner()
+__catnip_extract_verb()

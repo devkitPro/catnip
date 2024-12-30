@@ -63,6 +63,23 @@ function(__catnip_fix_compiler_commands_json filename)
 	file(WRITE "${filename}" "${outjson}")
 endfunction()
 
+function(__catnip_gen_clangd pkgname preset)
+	get_property(srcdir GLOBAL PROPERTY CATNIP_${pkgname}_SOURCE)
+	set(builddir "${CATNIP_BUILD_DIR}/${pkgname}.${preset}")
+	file(RELATIVE_PATH builddir_srcrel "${srcdir}" "${builddir}")
+
+	set(clangd_cf "{}")
+	catnip_str_to_json(cf_dbdir "${builddir_srcrel}")
+	string(JSON clangd_cf SET "${clangd_cf}" "CompilationDatabase" "${cf_dbdir}")
+	catnip_list_to_json(cf_remove "${CATNIP_CLANGD_FLAGS_REMOVE}")
+	string(JSON clangd_cf SET "${clangd_cf}" "Remove" "${cf_remove}")
+
+	set(clangd_config "{}")
+	string(JSON clangd_config SET "${clangd_config}" "CompileFlags" "${clangd_cf}")
+
+	file(WRITE "${srcdir}/.clangd" "${clangd_config}")
+endfunction()
+
 function(__catnip_build selector)
 	string(FIND "${selector}" "." dotpos)
 	string(SUBSTRING "${selector}" 0 ${dotpos} pkgname)
@@ -76,6 +93,10 @@ function(__catnip_build selector)
 	set(builddir "${CATNIP_BUILD_DIR}/${selector}")
 	set(stampfile "${builddir}/.catnip_stamp")
 	set(jsonfile "${builddir}/compile_commands.json")
+
+	if("${verb}" STREQUAL "config" AND CATNIP_FORCE_FLAG)
+		file(REMOVE_RECURSE "${builddir}")
+	endif()
 
 	if(EXISTS "${stampfile}")
 		file(READ "${stampfile}" existingstamp)
@@ -120,32 +141,43 @@ function(__catnip_build selector)
 		file(WRITE "${stampfile}" "${stamp}")
 	endif()
 
-	set(buildargs --build "${builddir}")
+	if (NOT "${verb}" STREQUAL "config")
+		set(buildargs --build "${builddir}")
 
-	if(NOT "${verb}" STREQUAL "build")
-		list(APPEND buildargs --target "${verb}")
+		if(NOT "${verb}" STREQUAL "build")
+			list(APPEND buildargs --target "${verb}")
+		endif()
+
+		if(CATNIP_FORCE_FLAG)
+			list(APPEND buildargs --clean-first)
+		endif()
+
+		if(CATNIP_VERBOSE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
+			list(APPEND buildargs --verbose)
+		endif()
+
+		if(CATNIP_PARALLEL_JOBS)
+			list(APPEND buildargs -j${CATNIP_PARALLEL_JOBS})
+		endif()
+
+		execute_process(
+			COMMAND ${CMAKE_COMMAND} ${buildargs}
+			RESULT_VARIABLE error
+		)
 	endif()
-
-	if(CATNIP_FORCE_FLAG)
-		list(APPEND buildargs --clean-first)
-	endif()
-
-	if(CATNIP_VERBOSE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
-		list(APPEND buildargs --verbose)
-	endif()
-
-	if(CATNIP_PARALLEL_JOBS)
-		list(APPEND buildargs -j${CATNIP_PARALLEL_JOBS})
-	endif()
-
-	execute_process(
-		COMMAND ${CMAKE_COMMAND} ${buildargs}
-		RESULT_VARIABLE error
-	)
 
 	file(TIMESTAMP "${jsonfile}" new_jsontime)
 	if(NOT "${old_jsontime}" STREQUAL "${new_jsontime}")
 		__catnip_fix_compiler_commands_json("${jsonfile}")
+	endif()
+
+	if(CATNIP_GEN_CLANGD)
+		get_property(already_done GLOBAL PROPERTY CATNIP_${pkgname}_GEN_CLANGD SET)
+		if (NOT already_done)
+			message(STATUS "Generating .clangd for ${selector}")
+			set_property(GLOBAL PROPERTY CATNIP_${pkgname}_GEN_CLANGD TRUE)
+			__catnip_gen_clangd("${pkgname}" "${preset}")
+		endif()
 	endif()
 
 	if(error)
@@ -153,12 +185,17 @@ function(__catnip_build selector)
 	endif()
 endfunction()
 
+if(NOT DEFINED CATNIP_GEN_CLANGD AND DEFINED ENV{CATNIP_GEN_CLANGD})
+	set(CATNIP_GEN_CLANGD "$ENV{CATNIP_GEN_CLANGD}")
+endif()
+
 if("${CATNIP_VERB}" STREQUAL "install" AND DEFINED ENV{DESTDIR})
 	# Fixup DESTDIR so that it matches the correct CWD
 	get_filename_component(DESTDIR "$ENV{DESTDIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
 	set(ENV{DESTDIR} "${DESTDIR}")
 endif()
 
+__catnip_planner()
 foreach(sel IN LISTS CATNIP_SELECTORS)
 	__catnip_build("${sel}")
 endforeach()
