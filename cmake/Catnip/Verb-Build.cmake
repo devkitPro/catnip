@@ -14,6 +14,55 @@ function(__catnip_generator var)
 	set(${var} "${generator}" PARENT_SCOPE)
 endfunction()
 
+function(__catnip_fix_compiler_commands_json filename)
+	# This fixing only applies to msys
+	if (NOT CATNIP_IS_MSYS)
+		return()
+	endif()
+
+	message(STATUS "Translating ${filename}")
+	file(READ "${filename}" injson)
+
+	string(JSON nument LENGTH "${injson}")
+	if (nument EQUAL 0)
+		return()
+	endif()
+
+	set(outjson "[]")
+	math(EXPR loopmax "${nument}-1")
+	foreach(i RANGE "${loopmax}")
+		string(JSON curent GET "${injson}" "${i}")
+		string(JSON curdir GET "${curent}" "directory")
+		string(JSON curcmd GET "${curent}" "command")
+		string(JSON curfil GET "${curent}" "file")
+		string(JSON curout GET "${curent}" "output")
+
+		separate_arguments(curcmd UNIX_COMMAND "${curcmd}")
+
+		catnip_xlate_path(curdir "${curdir}")
+		catnip_xlate_args(curcmd "${curcmd}")
+		catnip_xlate_path(curfil "${curfil}")
+		catnip_xlate_path(curout "${curout}")
+
+		# XX: is there any way to do this properly? as in the inverse of separate_arguments
+		list(JOIN curcmd " " curcmd)
+
+		catnip_str_to_json(curdir "${curdir}")
+		catnip_str_to_json(curcmd "${curcmd}")
+		catnip_str_to_json(curfil "${curfil}")
+		catnip_str_to_json(curout "${curout}")
+
+		set(curent "{}")
+		string(JSON curent  SET "${curent}"  "directory" "${curdir}")
+		string(JSON curent  SET "${curent}"  "command"   "${curcmd}")
+		string(JSON curent  SET "${curent}"  "file"      "${curfil}")
+		string(JSON curent  SET "${curent}"  "output"    "${curout}")
+		string(JSON outjson SET "${outjson}" "${i}"      "${curent}")
+	endforeach()
+
+	file(WRITE "${filename}" "${outjson}")
+endfunction()
+
 function(__catnip_build selector)
 	string(FIND "${selector}" "." dotpos)
 	string(SUBSTRING "${selector}" 0 ${dotpos} pkgname)
@@ -26,6 +75,7 @@ function(__catnip_build selector)
 	get_property(stamp GLOBAL PROPERTY ${scope}_STAMP)
 	set(builddir "${CATNIP_BUILD_DIR}/${selector}")
 	set(stampfile "${builddir}/.catnip_stamp")
+	set(jsonfile "${builddir}/compile_commands.json")
 
 	if(EXISTS "${stampfile}")
 		file(READ "${stampfile}" existingstamp)
@@ -37,6 +87,8 @@ function(__catnip_build selector)
 
 	file(MAKE_DIRECTORY "${builddir}")
 	message(STATUS "Entering ${builddir}")
+
+	file(TIMESTAMP "${jsonfile}" old_jsontime)
 
 	if(NOT EXISTS "${stampfile}")
 		get_property(cmakeargs GLOBAL PROPERTY ${scope}_CMAKE_ARGS)
@@ -86,6 +138,11 @@ function(__catnip_build selector)
 		COMMAND ${CMAKE_COMMAND} ${buildargs}
 		RESULT_VARIABLE error
 	)
+
+	file(TIMESTAMP "${jsonfile}" new_jsontime)
+	if(NOT "${old_jsontime}" STREQUAL "${new_jsontime}")
+		__catnip_fix_compiler_commands_json("${jsonfile}")
+	endif()
 
 	if(error)
 		message(FATAL_ERROR "Failed to build ${selector}")
