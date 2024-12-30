@@ -116,13 +116,17 @@ function(__catnip_visit selector verb)
 endfunction()
 
 function(__catnip_extract_verb)
+	if(NOT "${CATNIP_VERB}" STREQUAL "")
+		return()
+	endif()
+
 	if(NOT "${CATNIP_ARGV}" STREQUAL "")
 		list(GET CATNIP_ARGV 0 verb)
 	else()
 		set(verb "")
 	endif()
 
-	if("${verb}" IN_LIST CATNIP_VERBS)
+	if("${verb}" IN_LIST CATNIP_VERBS OR "${verb}" MATCHES "^dump-.+")
 		list(REMOVE_AT CATNIP_ARGV 0)
 	else()
 		set(verb "build")

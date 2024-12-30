@@ -14,6 +14,8 @@ include(Catnip/Topology)
 
 if("${CATNIP_VERB}" STREQUAL "clean")
 	include(Catnip/Verb-Clean)
+elseif("${CATNIP_VERB}" MATCHES "^dump-.+")
+	include(Catnip/Verb-Dump)
 else()
 	include(Catnip/Verb-Build)
 endif()

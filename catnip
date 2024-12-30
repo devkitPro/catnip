@@ -47,6 +47,11 @@ while [[ $# -gt 0 ]]; do
 		flags+=("-DCATNIP_GEN_CLANGD:BOOL=ON")
 		shift
 		;;
+	--dump-*)
+		flags+=("-DCATNIP_VERB:STRING=${1:2}")
+		dump_mode=1
+		shift
+		;;
 	--*)
 		echo "Invalid option: $1"
 		catnip_help
@@ -102,8 +107,13 @@ while [[ $# -gt 0 ]]; do
 		shift
 		;;
 	*)
-		echo "Invalid argument: $1"
-		catnip_help
+		if [[ "$dump_mode" -eq "1" ]]; then
+			args+=("$1")
+			shift
+		else
+			echo "Invalid argument: $1"
+			catnip_help
+		fi
 		;;
 	esac
 done
