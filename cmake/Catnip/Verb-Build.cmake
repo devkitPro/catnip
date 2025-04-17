@@ -134,6 +134,10 @@ function(__catnip_build selector)
 		list(APPEND buildargs --verbose)
 	endif()
 
+	if(CATNIP_PARALLEL_JOBS)
+		list(APPEND buildargs -j${CATNIP_PARALLEL_JOBS})
+	endif()
+
 	execute_process(
 		COMMAND ${CMAKE_COMMAND} ${buildargs}
 		RESULT_VARIABLE error
