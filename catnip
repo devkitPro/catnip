@@ -22,6 +22,7 @@ catnip_help() {
 	echo "  -p                           = Enable package selector mode"
 	echo "  -v                           = Enable verbose mode"
 	echo "  -f                           = Enable forceful mode"
+	echo "  -j <nproc>                   = Specify number of parallel jobs"
 	echo ""
 	exit 0
 }
@@ -46,7 +47,7 @@ while [[ $# -gt 0 ]]; do
 		;;
 	-*)
 		OPTIND=1
-		while getopts "S:B:D:U:T:t:pvf?h" opt; do
+		while getopts "S:B:D:U:T:t:pvfj:?h" opt; do
 			case "$opt" in
 			h|\?)
 				catnip_help
@@ -82,6 +83,9 @@ while [[ $# -gt 0 ]]; do
 				;;
 			f)
 				flags+=("-DCATNIP_FORCE_FLAG:BOOL=ON")
+				;;
+			j)
+				flags+=("-DCATNIP_PARALLEL_JOBS:INT=${OPTARG}")
 				;;
 			esac
 		done
